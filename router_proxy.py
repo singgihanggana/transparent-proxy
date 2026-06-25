@@ -75,7 +75,7 @@ def mark_socket(sock: socket.socket) -> None:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_MARK, SO_MARK)
     except PermissionError as exc:
         raise RuntimeError(
-            "failed to set SO_MARK; container needs root/CAP_NET_ADMIN or SO_MARK=0"
+            "failed to set SO_MARK; container needs root/CAP_NET_ADMIN and a non-zero SO_MARK"
         ) from exc
 
 

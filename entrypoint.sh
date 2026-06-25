@@ -4,8 +4,12 @@ set -eu
 REDIRECT_PORT="${REDIRECT_PORT:-12345}"
 UPSTREAM_PROXY="${UPSTREAM_PROXY:-http://proxy:3128}"
 DIRECT_DOMAINS="${DIRECT_DOMAINS:-}"
-ROUTER_PORT="${ROUTER_PORT:-3128}"
 SO_MARK="${SO_MARK:-100}"
+
+if [ "$SO_MARK" = "0" ] || [ "$SO_MARK" = "0x0" ] || [ "$SO_MARK" = "0X0" ]; then
+  echo "transparent-proxy: SO_MARK must be non-zero; it is required to keep proxy egress out of the REDIRECT loop" >&2
+  exit 1
+fi
 
 # Exclude: localhost, Docker/private ranges, redirect port, and marked egress.
 # Marked egress is used by GOST and by the embedded router for DIRECT sockets so
@@ -22,7 +26,7 @@ iptables -t nat -A OUTPUT -p tcp -j GOST
 
 if [ -n "$DIRECT_DOMAINS" ]; then
   echo "transparent-proxy: domain routing enabled; direct domains=$DIRECT_DOMAINS" >&2
-  export UPSTREAM_PROXY DIRECT_DOMAINS REDIRECT_PORT ROUTER_PORT SO_MARK
+  export UPSTREAM_PROXY DIRECT_DOMAINS REDIRECT_PORT SO_MARK
   # The embedded router is the transparent listener in routing mode. It reads
   # SO_ORIGINAL_DST, sniffs TLS SNI/HTTP Host, and then chooses DIRECT or
   # UPSTREAM_PROXY. This avoids GOST's red listener losing the hostname before

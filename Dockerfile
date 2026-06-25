@@ -9,6 +9,5 @@ RUN chmod +x /entrypoint.sh /router_proxy.py
 ENV REDIRECT_PORT=12345
 ENV UPSTREAM_PROXY=http://proxy:3128
 ENV DIRECT_DOMAINS=""
-ENV ROUTER_PORT=3128
 ENV SO_MARK=100
 ENTRYPOINT ["/entrypoint.sh"]

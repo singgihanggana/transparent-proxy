@@ -23,11 +23,10 @@ Configure with environment variables:
 
 | Variable | Default | Meaning |
 |---|---:|---|
-| `REDIRECT_PORT` | `12345` | Local GOST transparent listener port |
+| `REDIRECT_PORT` | `12345` | Local transparent listener port. In default mode this is GOST; in `DIRECT_DOMAINS` mode this is the embedded router. |
 | `UPSTREAM_PROXY` | `http://proxy:3128` | Default HTTP proxy for non-direct domains |
 | `DIRECT_DOMAINS` | empty | Comma-separated exact/suffix domain rules to route direct |
-| `ROUTER_PORT` | `3128` | Embedded router listener on `127.0.0.1` |
-| `SO_MARK` | `100` | Packet mark used to bypass the iptables redirect loop |
+| `SO_MARK` | `100` | Non-zero packet mark used to bypass the iptables redirect loop |
 
 Example for the manga stack:
 
@@ -41,6 +40,8 @@ environment:
 Rules beginning with `.` are suffix matches (`.comix.to` matches `api.comix.to`). `*.example.com` is normalized to `.example.com`.
 
 If `DIRECT_DOMAINS` is empty, the container uses the original behavior and forwards all traffic directly to `UPSTREAM_PROXY` with no embedded router.
+
+Domain detection in `DIRECT_DOMAINS` mode is best-effort: the router sniffs TLS SNI or HTTP `Host` from the first bytes of the connection. If no hostname is detected, the connection safely falls back to `UPSTREAM_PROXY`.
 
 ## Publish to GHCR
 
