@@ -7,29 +7,51 @@ Transparent TCP proxy container: redirects outbound TCP to Gost, which forwards 
 - **GHCR:** `ghcr.io/singgihanggana/transparent-proxy:latest`
 - **Production:** `docker pull ghcr.io/singgihanggana/transparent-proxy:latest`
 
-## Publish to GHCR
+## Domain-direct routing
 
-1. Push this repo (including `transparent-proxy/` and `.github/workflows/push-transparent-proxy.yml`) to GitHub (`main` or `master`).
-2. The workflow builds and pushes the image to `ghcr.io/<owner>/transparent-proxy:latest`. If the repo is under `singgihanggana`, the image is `ghcr.io/singgihanggana/transparent-proxy:latest`.
-3. Or run **Actions → Build and push transparent-proxy → Run workflow**.
+The image can route selected domains directly from the proxy-transparent container while keeping all other traffic on the upstream proxy.
 
-## Local build (optional)
-
-```bash
-docker build -t ghcr.io/singgihanggana/transparent-proxy:latest ./transparent-proxy
-docker push ghcr.io/singgihanggana/transparent-proxy:latest  # after docker login ghcr.io
+```text
+app/flaresolverr in shared netns
+  -> iptables REDIRECT
+  -> embedded transparent router
+      |- DIRECT_DOMAINS match -> direct socket connect
+      `- default              -> UPSTREAM_PROXY
 ```
 
-## Production
+Configure with environment variables:
 
-In `compose-a.yml`, `proxy-transparent` uses:
+| Variable | Default | Meaning |
+|---|---:|---|
+| `REDIRECT_PORT` | `12345` | Local GOST transparent listener port |
+| `UPSTREAM_PROXY` | `http://proxy:3128` | Default HTTP proxy for non-direct domains |
+| `DIRECT_DOMAINS` | empty | Comma-separated exact/suffix domain rules to route direct |
+| `ROUTER_PORT` | `3128` | Embedded router listener on `127.0.0.1` |
+| `SO_MARK` | `100` | Packet mark used to bypass the iptables redirect loop |
+
+Example for the manga stack:
 
 ```yaml
-image: ghcr.io/singgihanggana/transparent-proxy:latest
+environment:
+  - REDIRECT_PORT=12345
+  - UPSTREAM_PROXY=http://proxy:3128
+  - DIRECT_DOMAINS=comix.to,.comix.to,static.comix.top,.static.comix.top,mangadot.net,.mangadot.net
 ```
 
-No need to build on the server; `docker compose pull` will get the image from GHCR. For private packages, log in first:
+Rules beginning with `.` are suffix matches (`.comix.to` matches `api.comix.to`). `*.example.com` is normalized to `.example.com`.
+
+If `DIRECT_DOMAINS` is empty, the container uses the original behavior and forwards all traffic directly to `UPSTREAM_PROXY` with no embedded router.
+
+## Publish to GHCR
+
+1. Push this repo to GitHub (`main`).
+2. The workflow builds and pushes the image to `ghcr.io/<owner>/transparent-proxy:latest`. If the repo is under `singgihanggana`, the image is `ghcr.io/singgihanggana/transparent-proxy:latest`.
+3. Or run **Actions → Build and Push to GHCR → Run workflow**.
+
+## Local build
 
 ```bash
-echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+docker build -t ghcr.io/singgihanggana/transparent-proxy:domain-routing-test .
 ```
+
+For production, prefer a pinned tag over `latest` once the staging test is green.
